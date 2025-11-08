@@ -1,0 +1,267 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { useAdminCheck } from '@/hooks/useAdminCheck';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
+import { LogOut, Calendar as CalendarIcon, Trash2, User, Building, Mail, Phone, Clock } from 'lucide-react';
+import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+
+interface Appointment {
+  id: string;
+  appointment_date: string;
+  appointment_time: string;
+  service_type: string;
+  notes: string | null;
+  status: string;
+  client_name: string;
+  client_email: string;
+  client_phone: string | null;
+  client_company: string | null;
+}
+
+const SERVICE_TYPES = {
+  video: 'Captação de Vídeo',
+  foto: 'Captação de Fotografia',
+  ambos: 'Vídeo + Fotografia'
+};
+
+export default function AdminDashboard() {
+  const { user, signOut, loading: authLoading } = useAuth();
+  const { isAdmin, loading: adminLoading } = useAdminCheck();
+  const navigate = useNavigate();
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate('/auth');
+    }
+  }, [user, authLoading, navigate]);
+
+  useEffect(() => {
+    if (!adminLoading && !isAdmin && user) {
+      toast.error('Acesso negado: Apenas administradores');
+      navigate('/agendar');
+    }
+  }, [isAdmin, adminLoading, user, navigate]);
+
+  useEffect(() => {
+    if (user && isAdmin) {
+      fetchAppointments();
+    }
+  }, [user, isAdmin]);
+
+  const fetchAppointments = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('status', 'scheduled')
+        .order('appointment_date', { ascending: true })
+        .order('appointment_time', { ascending: true });
+
+      if (error) {
+        toast.error('Erro ao carregar agendamentos');
+        console.error('Error fetching appointments:', error);
+      } else {
+        setAppointments(data || []);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Erro ao carregar agendamentos');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success('Agendamento cancelado');
+      fetchAppointments();
+    } catch (error) {
+      console.error('Error deleting appointment:', error);
+      toast.error('Erro ao cancelar agendamento');
+    }
+  };
+
+  if (authLoading || adminLoading || loading) {
+    return (
+      <div className="min-h-screen bg-gradient-soft flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-primary animate-pulse" />
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return null;
+  }
+
+  // Group appointments by date
+  const appointmentsByDate = appointments.reduce((acc, apt) => {
+    const date = apt.appointment_date;
+    if (!acc[date]) {
+      acc[date] = [];
+    }
+    acc[date].push(apt);
+    return acc;
+  }, {} as Record<string, Appointment[]>);
+
+  return (
+    <div className="min-h-screen bg-gradient-soft">
+      {/* Header */}
+      <header className="border-b border-border/50 bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center">
+                <CalendarIcon className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold">IDLAB - Painel Administrativo</h1>
+                <p className="text-sm text-muted-foreground">Gerenciar Agendamentos</p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              onClick={signOut}
+              className="gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              Sair
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-8">
+        <div className="max-w-5xl mx-auto">
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold mb-2">Captações Agendadas</h2>
+            <p className="text-muted-foreground">
+              {appointments.length} {appointments.length === 1 ? 'agendamento' : 'agendamentos'} pendente{appointments.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+
+          {appointments.length === 0 ? (
+            <Card className="shadow-card">
+              <CardContent className="py-12 text-center">
+                <CalendarIcon className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-muted-foreground">Nenhum agendamento encontrado</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-6">
+              {Object.entries(appointmentsByDate).map(([date, dateAppointments]) => (
+                <div key={date}>
+                  <div className="mb-3 flex items-center gap-2">
+                    <CalendarIcon className="w-5 h-5 text-primary" />
+                    <h3 className="text-lg font-semibold capitalize">
+                      {format(new Date(date), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                    </h3>
+                    <Badge variant="secondary">{dateAppointments.length}</Badge>
+                  </div>
+                  <div className="space-y-3">
+                    {dateAppointments.map((appointment) => (
+                      <Card key={appointment.id} className="shadow-card">
+                        <CardHeader>
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <CardTitle className="flex items-center gap-2">
+                                <Clock className="w-5 h-5" />
+                                {appointment.appointment_time.slice(0, 5)}h
+                              </CardTitle>
+                              <CardDescription>
+                                {SERVICE_TYPES[appointment.service_type as keyof typeof SERVICE_TYPES]}
+                              </CardDescription>
+                            </div>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="icon">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Cancelar agendamento?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Esta ação não pode ser desfeita. O agendamento será cancelado permanentemente.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Não</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDelete(appointment.id)}>
+                                    Sim, cancelar
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="grid md:grid-cols-2 gap-4">
+                            <div className="flex items-start gap-2">
+                              <User className="w-4 h-4 text-muted-foreground mt-0.5" />
+                              <div>
+                                <p className="text-sm font-medium">{appointment.client_name}</p>
+                                {appointment.client_company && (
+                                  <p className="text-xs text-muted-foreground">{appointment.client_company}</p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <Mail className="w-4 h-4 text-muted-foreground mt-0.5" />
+                              <p className="text-sm">{appointment.client_email}</p>
+                            </div>
+                          </div>
+                          {appointment.client_phone && (
+                            <div className="flex items-center gap-2">
+                              <Phone className="w-4 h-4 text-muted-foreground" />
+                              <p className="text-sm">{appointment.client_phone}</p>
+                            </div>
+                          )}
+                          {appointment.notes && (
+                            <div className="pt-2 border-t">
+                              <p className="text-sm text-muted-foreground">{appointment.notes}</p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
