@@ -36,13 +36,19 @@ async function createCalendarEvent(accessToken: string, appointment: any) {
   const endTime = new Date(`${startDateTime}`);
   endTime.setHours(endTime.getHours() + 1);
 
-  const event = {
+  const serviceTypeLabels: Record<string, string> = {
+    video: 'Captação de Vídeo',
+    photo: 'Captação de Fotografia',
+    both: 'Vídeo + Fotografia'
+  };
+
+  const event: any = {
     summary: `Captação - ${appointment.client_name}`,
     description: `
 Empresa: ${appointment.client_company || 'N/A'}
-Email: ${appointment.client_email}
+Email: ${appointment.client_email || 'N/A'}
 Telefone: ${appointment.client_phone || 'N/A'}
-Serviço: ${appointment.service_type}
+Serviço: ${serviceTypeLabels[appointment.service_type] || appointment.service_type}
 ${appointment.notes ? `\nNotas: ${appointment.notes}` : ''}
     `.trim(),
     start: {
@@ -53,10 +59,12 @@ ${appointment.notes ? `\nNotas: ${appointment.notes}` : ''}
       dateTime: endTime.toISOString().slice(0, -5),
       timeZone: 'America/Sao_Paulo',
     },
-    attendees: [
-      { email: appointment.client_email },
-    ],
   };
+
+  // Only add attendees if email is provided and valid
+  if (appointment.client_email && appointment.client_email.trim() !== '') {
+    event.attendees = [{ email: appointment.client_email }];
+  }
 
   const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
     method: 'POST',
@@ -87,7 +95,7 @@ serve(async (req) => {
     const { data: config, error: configError } = await supabase
       .from('admin_config')
       .select('access_token, google_calendar_refresh_token')
-      .eq('id', '00000000-0000-0000-0000-000000000001')
+      .eq('id', 'ba13854a-fb8a-4b3b-978b-43cabaa4398b')
       .single();
 
     if (configError || !config) {
@@ -106,7 +114,7 @@ serve(async (req) => {
     await supabase
       .from('admin_config')
       .update({ access_token: accessToken })
-      .eq('id', '00000000-0000-0000-0000-000000000001');
+      .eq('id', 'ba13854a-fb8a-4b3b-978b-43cabaa4398b');
 
     // Get all scheduled appointments
     const { data: appointments, error: appointmentsError } = await supabase
