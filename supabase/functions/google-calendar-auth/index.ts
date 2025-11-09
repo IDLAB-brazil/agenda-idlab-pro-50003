@@ -90,7 +90,7 @@ serve(async (req) => {
       return new Response(null, {
         status: 302,
         headers: {
-          'Location': `${url.origin}/agencia/idlab2025?connected=true`,
+          'Location': `${url.origin}/agencia/idlab-admin-2025?connected=true`,
         },
       });
     }
