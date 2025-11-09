@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
-import { useAdminCheck } from '@/hooks/useAdminCheck';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
-import { LogOut, Calendar as CalendarIcon, Trash2, User, Building, Mail, Phone, Clock } from 'lucide-react';
+import { Calendar as CalendarIcon, Trash2, User, Building, Mail, Phone, Clock, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -41,31 +39,48 @@ const SERVICE_TYPES = {
   ambos: 'Vídeo + Fotografia'
 };
 
-export default function AdminDashboard() {
-  const { user, signOut, loading: authLoading } = useAuth();
-  const { isAdmin, loading: adminLoading } = useAdminCheck();
+export default function AdminPanel() {
+  const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [validToken, setValidToken] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      navigate('/auth');
-    }
-  }, [user, authLoading, navigate]);
+    verifyToken();
+  }, [token]);
 
   useEffect(() => {
-    if (!adminLoading && !isAdmin && user) {
-      toast.error('Acesso negado: Apenas administradores');
-      navigate('/agendar');
-    }
-  }, [isAdmin, adminLoading, user, navigate]);
-
-  useEffect(() => {
-    if (user && isAdmin) {
+    if (validToken) {
       fetchAppointments();
     }
-  }, [user, isAdmin]);
+  }, [validToken]);
+
+  const verifyToken = async () => {
+    if (!token) {
+      navigate('/');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('admin_config')
+        .select('access_token')
+        .eq('access_token', token)
+        .maybeSingle();
+
+      if (error || !data) {
+        toast.error('Link de acesso inválido');
+        navigate('/');
+        return;
+      }
+
+      setValidToken(true);
+    } catch (error) {
+      console.error('Error verifying token:', error);
+      navigate('/');
+    }
+  };
 
   const fetchAppointments = async () => {
     try {
@@ -108,7 +123,12 @@ export default function AdminDashboard() {
     }
   };
 
-  if (authLoading || adminLoading || loading) {
+  const syncWithGoogleCalendar = async () => {
+    toast.info('Integração com Google Calendar será implementada em breve');
+    // TODO: Implementar OAuth e sincronização
+  };
+
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-soft flex items-center justify-center">
         <div className="text-center">
@@ -119,7 +139,7 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!isAdmin) {
+  if (!validToken) {
     return null;
   }
 
@@ -144,17 +164,17 @@ export default function AdminDashboard() {
                 <CalendarIcon className="w-5 h-5 text-primary-foreground" />
               </div>
               <div>
-                <h1 className="text-xl font-bold">IDLAB - Painel Administrativo</h1>
-                <p className="text-sm text-muted-foreground">Gerenciar Agendamentos</p>
+                <h1 className="text-xl font-bold">IDLAB - Painel da Agência</h1>
+                <p className="text-sm text-muted-foreground">Gerenciar Captações</p>
               </div>
             </div>
             <Button
               variant="outline"
-              onClick={signOut}
+              onClick={syncWithGoogleCalendar}
               className="gap-2"
             >
-              <LogOut className="w-4 h-4" />
-              Sair
+              <ExternalLink className="w-4 h-4" />
+              Sincronizar Google Calendar
             </Button>
           </div>
         </div>
@@ -236,10 +256,12 @@ export default function AdminDashboard() {
                                 )}
                               </div>
                             </div>
-                            <div className="flex items-start gap-2">
-                              <Mail className="w-4 h-4 text-muted-foreground mt-0.5" />
-                              <p className="text-sm">{appointment.client_email}</p>
-                            </div>
+                            {appointment.client_email && (
+                              <div className="flex items-start gap-2">
+                                <Mail className="w-4 h-4 text-muted-foreground mt-0.5" />
+                                <p className="text-sm">{appointment.client_email}</p>
+                              </div>
+                            )}
                           </div>
                           {appointment.client_phone && (
                             <div className="flex items-center gap-2">

@@ -3,10 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/hooks/useAuth";
-import Auth from "./pages/Auth";
 import PublicBooking from "./pages/PublicBooking";
-import AdminDashboard from "./pages/AdminDashboard";
+import AdminPanel from "./pages/AdminPanel";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -17,20 +15,17 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            {/* Rotas Públicas - Cliente */}
-            <Route path="/" element={<PublicBooking />} />
-            <Route path="/agendar" element={<PublicBooking />} />
-            
-            {/* Rotas Privadas - Agência */}
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/auth" element={<Auth />} />
-            
-            {/* Catch-all */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
+        <Routes>
+          {/* Rota Pública - Cliente */}
+          <Route path="/" element={<PublicBooking />} />
+          <Route path="/agendar" element={<PublicBooking />} />
+          
+          {/* Rota da Agência - Protegida por Token */}
+          <Route path="/agencia/:token" element={<AdminPanel />} />
+          
+          {/* Catch-all */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
