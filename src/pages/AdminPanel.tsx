@@ -122,8 +122,8 @@ export default function AdminPanel() {
     const { data, error } = await supabase
       .from('admin_config')
       .select('google_calendar_refresh_token')
-      .eq('id', '00000000-0000-0000-0000-000000000001')
-      .single();
+      .eq('id', 'ba13854a-fb8a-4b3b-978b-43cabaa4398b')
+      .maybeSingle();
 
     if (!error && data?.google_calendar_refresh_token) {
       setIsConnectedToGoogle(true);
@@ -179,7 +179,7 @@ export default function AdminPanel() {
   const syncWithGoogleCalendar = async () => {
     setIsSyncing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('google-calendar-webhook', {
+      const { data, error } = await supabase.functions.invoke('sync-google-calendar', {
         body: {},
       });
 
