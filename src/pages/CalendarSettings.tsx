@@ -35,8 +35,8 @@ export default function CalendarSettings() {
     try {
       const { data, error } = await supabase
         .from('admin_config')
-        .select('access_token')
-        .eq('access_token', token)
+        .select('admin_token')
+        .eq('admin_token', token)
         .maybeSingle();
 
       if (error || !data) {
@@ -58,8 +58,8 @@ export default function CalendarSettings() {
       const { data, error } = await supabase
         .from('admin_config')
         .select('google_calendar_id')
-        .eq('id', '00000000-0000-0000-0000-000000000001')
-        .single();
+        .eq('id', 'ba13854a-fb8a-4b3b-978b-43cabaa4398b')
+        .maybeSingle();
 
       if (error) throw error;
 
@@ -78,7 +78,7 @@ export default function CalendarSettings() {
       const { error } = await supabase
         .from('admin_config')
         .update({ google_calendar_id: calendarId })
-        .eq('id', '00000000-0000-0000-0000-000000000001');
+        .eq('id', 'ba13854a-fb8a-4b3b-978b-43cabaa4398b');
 
       if (error) throw error;
 

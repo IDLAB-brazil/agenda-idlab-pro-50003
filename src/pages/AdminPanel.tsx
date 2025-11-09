@@ -77,8 +77,8 @@ export default function AdminPanel() {
     try {
       const { data, error } = await supabase
         .from('admin_config')
-        .select('access_token')
-        .eq('access_token', token)
+        .select('admin_token')
+        .eq('admin_token', token)
         .maybeSingle();
 
       if (error || !data) {

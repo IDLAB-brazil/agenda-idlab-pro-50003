@@ -17,6 +17,7 @@ export type Database = {
       admin_config: {
         Row: {
           access_token: string
+          admin_token: string | null
           created_at: string
           google_calendar_id: string | null
           google_calendar_refresh_token: string | null
@@ -25,6 +26,7 @@ export type Database = {
         }
         Insert: {
           access_token: string
+          admin_token?: string | null
           created_at?: string
           google_calendar_id?: string | null
           google_calendar_refresh_token?: string | null
@@ -33,6 +35,7 @@ export type Database = {
         }
         Update: {
           access_token?: string
+          admin_token?: string | null
           created_at?: string
           google_calendar_id?: string | null
           google_calendar_refresh_token?: string | null
